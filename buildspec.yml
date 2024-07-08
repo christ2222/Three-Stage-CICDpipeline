@@ -1,0 +1,49 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9 # this will install python 3.9 in the temporary env
+    commands:
+      - echo Install cfn-lint
+      - pip3 install cfn-lint
+
+    # steps:
+  pre_build:
+    commands:
+      - echo ******* WE ARE ENTERED THE PREBUILD STAGE *******
+      - echo CHECKING THE VERSION OF PYTHON INSTALLED
+      - python --version # to make sure Python has been successfully installed
+      - echo CHECKING IF Cfn-lint was INSTALLED
+      - cfn-lint --version
+
+    # steps:
+  build:  # This is where you are actually building the code
+    commands:
+      - echo  *******Build started on `date`****** 
+      - echo CHECK IF THE TEMPLATE IS PRESENT
+      - ls -l
+      - echo VALIDATION THE CLOUDFORMATION TEMPLATE
+      - cfn-lint Ec2_cfn_template.yml 
+      - echo BUILD THE CLOUDFORMATION TEMPLATE
+      - aws cloudformation package --template-file Ec2_cfn_template.yml --s3-bucket 3stage-cicd-bucket --output-template-file build_template_Artifact.yml
+     # - echo MAKE SURE THE BUILD ARTIFACT IS COPY TO THE S3 BUCKET
+     # - aws s3 cp build_template_Artifact.yml s3://3stages-cicd-bucket/
+
+      
+    
+    # steps:
+  post_build:
+    commands:
+      - echo ==== Build completed at `date` ====
+      - ls -l # to see what is the Artifact
+      #- echo VERIFY THE ARTIFACT IN THE S3 BUCKET
+      #- aws s3 ls s3://3stages-cicd-bucket/
+
+   
+    # steps:
+artifacts:
+  files:
+    - build_template_Artifact.yml
+
+

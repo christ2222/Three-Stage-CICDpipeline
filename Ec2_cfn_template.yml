@@ -1,0 +1,96 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  AWS CloudFormation Template for deploying Apache on Amazon Linux EC2 Instance 2023    
+  This instance will reference the sample network stack previously created.
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: "ami-08a0d1e16fc3f61ea"
+    us-west-1:
+      AMI: "ami-0ca1f30768d0cf0e1"
+    us-east-2:
+      AMI: "ami-033fabdd332044f06"
+    us-west-2:
+      AMI: "ami-0b20a6f09484773af"
+
+Parameters: 
+  InstanceType:
+    Type: String
+    Description: Enter t2.micro, m1.small, or m1.large. Default is t2.micro.
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - m1.small
+      - m1.large
+    ConstraintDescription: "Must be a valid EC2 instance type."
+  KeyName:
+    Description: "Name of an existing EC2 KeyPair to enable SSH access to the instance."
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: "Must be the name of an existing EC2 KeyPair."
+  VPCStackName:
+    Type: String
+    Description: "Name of the CloudFormation stack exporting the VPC ID, Subnet ID, and Security Group ID."
+
+Resources:
+  InstanceSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Enable SSH access"
+      VpcId:
+        Fn::ImportValue: !Sub '${VPCStackName}-VPCID'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 162.251.173.95/32
+      Tags: 
+       - Key: "Name"
+         Value: "SSH SG"
+         
+  MyEC2Instance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !FindInMap
+        - RegionMap
+        - !Ref "AWS::Region"
+        - AMI
+      KeyName: !Ref KeyName
+      SubnetId: !ImportValue
+        Fn::Sub: '${VPCStackName}-SubnetID'
+      SecurityGroupIds:
+        - !Ref InstanceSecurityGroup
+        - Fn::ImportValue: !Sub '${VPCStackName}-SecurityGroupID'
+      Tags: 
+       - Key: "Name"
+         Value: "MyApacheWebserver"
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          echo "<html><body><h1>This website was deployed in ${AWS::Region} using CI/CD pipeline and CloudFormation as deploy provider</h1><div style='text-align:center;'><img src='https://www.atulhost.com/wp-content/uploads/2021/10/cicd-2048x1079.png' alt='CI/CD Pipeline' style='width:1000px;'></div></body></html>" > /var/www/html/index.html
+  ElasticIP: 
+    Type: AWS::EC2::EIP
+
+  MyElasticIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref MyEC2Instance
+      EIP: !Ref ElasticIP
+
+Outputs:
+  InstancePrivateIP:
+    Description: "Private IP address of the EC2 instance"
+    Value: !GetAtt MyEC2Instance.PrivateIp
+    Export:
+      Name: !Sub '${AWS::StackName}-PrivIP'
+
+  InstancePublicDNS:
+    Description: "Public DNS name of the EC2 instance"
+    Value: !GetAtt MyEC2Instance.PublicDnsName
+    Export:
+      Name: !Sub '${AWS::StackName}-pubDNSname'
