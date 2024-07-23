@@ -45,11 +45,11 @@ Before setting up the CI/CD pipeline, ensure you have the following:
 1. **Create an EC2 Instance** in `us-east-1` named `local-test-env`.
 2. Attach an admin role to the EC2 instance.
 
-3. **Install necessary tools**:
+3. **Check, if not present Install necessary tools**:
    ```bash
-   python --version
-   python3 --version
-   cfn-lint --version
+
+   python3 --version    (check if python3 is present)
+   cfn-lint --version    (check if cfn-lint is present) if not
    sudo yum update -y
    sudo yum install -y python3 python3-pip
    pip3 install cfn-lint
